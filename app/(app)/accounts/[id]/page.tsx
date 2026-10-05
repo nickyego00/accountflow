@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback, use } from "react"; import Link from "next/link"; import { toast } from "sonner";
 import { supabase, usd, Account, editTotal } from "@/lib/supabase"; import { Modal, Stat, StatusBadge, IssueBadge, inputCls } from "@/components/ui"; import { ADMIN_NAME } from "@/lib/config";
+import PayBadge from "@/components/PayBadge"; import WorkAnalysis from "@/components/WorkAnalysis";
 export default function AccountPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params); const [a, setA] = useState<(Account & { people: { name: string } })|null>(null), [w, setW] = useState<any[]>([]);
   const load = useCallback(async () => { setA((await supabase.from("account_totals").select("*, people(name)").eq("id",id).single()).data as any);
@@ -8,20 +9,24 @@ export default function AccountPage({ params }: { params: Promise<{ id: string }
   useEffect(()=>{ load(); },[load]);
   const patch = async (v: object) => { const {error}=await supabase.from("accounts").update({...v,updated_at:new Date().toISOString()}).eq("id",id); if(error) toast.error(error.message); else { toast.success("Account updated"); load(); } };
   if (!a) return <p className="text-slate-500">Loading…</p>;
-  const isNick = a.people.name.trim().toLowerCase()===ADMIN_NAME.toLowerCase();
+  const isNick = a.people.name.trim().toLowerCase()===ADMIN_NAME.toLowerCase(), hasIssue = a.issue!=="No Issue";
   const changeRate = () => { const v=prompt("New rate: type 10 or 15"); if(v===null) return; if(v.trim()==="10"||v.trim()==="15") patch({rate:Number(v)/100}); else toast.error("Rate must be 10 or 15"); };
   return (<div className="space-y-6">
     <div><Link href={`/people/${a.person_id}`} className="text-sm text-slate-500">{a.people.name}</Link><h1 className="break-all text-2xl font-semibold">{a.email}</h1><button className="text-sm text-slate-500 underline" onClick={()=>{ const v=prompt("Account email", a.email); if(v&&v!==a.email) patch({email:v}); }}>Edit email</button>
-      <div className="mt-2 flex gap-2"><StatusBadge s={a.status}/><IssueBadge i={a.issue}/></div></div>
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="text-sm text-slate-500">Total made</div><div className="mt-1 text-2xl font-semibold">{usd(Number(a.total_work))}</div><button className="mt-2 text-xs text-blue-600 underline" onClick={()=>editTotal(a.id,Number(a.total_work),load)}>Edit amount</button></div>
+      <div className="mt-2 flex flex-wrap gap-2"><StatusBadge s={a.status}/><IssueBadge i={a.issue}/><PayBadge s={a.payment_status} issue={a.issue}/></div></div>
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="text-sm text-slate-500">{hasIssue?"Held (not paid)":"Total made"}</div><div className={`mt-1 text-2xl font-semibold ${hasIssue?"text-rose-600":""}`}>{usd(Number(a.total_work))}</div><button className="mt-2 text-xs text-blue-600 underline" onClick={()=>editTotal(a.id,Number(a.total_work),load)}>Edit amount</button></div>
       <Stat label="Total earnings" value={usd(Number(a.earnings))} accent/>
       {isNick
         ? <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm"><div className="text-slate-500">Rate</div><select className="mt-1 text-xl font-semibold" value={String(Number(a.rate))} onChange={e=>patch({rate:Number(e.target.value)})}><option value="0.1">10%</option><option value="0.15">15%</option></select></div>
         : <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm"><div className="text-slate-500">Rate</div><button className="mt-2 text-sm text-blue-600 underline" onClick={changeRate}>Change rate</button></div>}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm"><div className="text-slate-500">Status / issue</div>
         <select className="mt-1 block" value={a.status} onChange={e=>patch({status:e.target.value})}><option>Active</option><option>Inactive</option></select>
-        <select className="block" value={a.issue} onChange={e=>patch({issue:e.target.value})}><option>No Issue</option><option>Account Suspended</option><option>Multimango Suspended</option></select></div></div>
+        <select className="block" value={a.issue} onChange={e=>patch({issue:e.target.value})}><option>No Issue</option><option>Account Suspended</option><option>Multimango Suspended</option></select></div>
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm"><div className="text-slate-500">Payment</div>
+        {hasIssue ? <div className="mt-2 text-lg font-semibold text-rose-600">Not paid</div>
+          : <select className="mt-1 text-lg font-semibold" value={a.payment_status} onChange={e=>patch({payment_status:e.target.value})}><option>Unpaid</option><option>Pending</option><option>Paid</option></select>}</div></div>
+    <WorkAnalysis records={w}/>
     <div className="flex items-center justify-between"><h2 className="font-semibold">Work history</h2>
       <Modal title="Add work" trigger="Add work">{close=><form className="space-y-3" onSubmit={async e=>{ e.preventDefault(); const f=Object.fromEntries(new FormData(e.currentTarget)) as any;
         const {error}=await supabase.from("work_records").insert({account_id:id,work_date:f.date,amount_usd:Number(f.amount),note:f.note||null});

@@ -3,7 +3,7 @@ import { toast } from "sonner";
 
 export const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
-export type Account = { id: string; person_id: string; email: string; rate: number; status: "Active"|"Inactive"; issue: string; notes: string|null; updated_at: string; total_work: number; earnings: number; admin_share: number };
+export type Account = { id: string; person_id: string; email: string; rate: number; status: "Active"|"Inactive"; issue: string; notes: string|null; updated_at: string; total_work: number; earnings: number; admin_share: number; payment_status: "Paid"|"Pending"|"Unpaid" };
 
 export const usd = (n: number) => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:2}).format(n);
 

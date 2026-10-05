@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback, use } from "react"; import Link from "next/link"; import { useRouter } from "next/navigation"; import { toast } from "sonner"; import { Camera } from "lucide-react";
 import { supabase, usd, Account, editTotal, uploadAvatar } from "@/lib/supabase"; import { Modal, Stat, StatusBadge, IssueBadge, Avatar, inputCls } from "@/components/ui"; import { ADMIN_NAME } from "@/lib/config";
-import PersonTools from "@/components/PersonTools";
+import PersonTools from "@/components/PersonTools"; import PayBadge from "@/components/PayBadge";
 export default function Person({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params), router = useRouter(); const [p, setP] = useState<any>(null), [acc, setAcc] = useState<Account[]>([]), [every, setEvery] = useState<any[]>([]);
   const load = useCallback(async () => {
@@ -22,7 +22,7 @@ export default function Person({ params }: { params: Promise<{ id: string }> }) 
     <Link href={`/accounts/${a.id}`} className="rounded-xl border border-slate-300 py-2.5 text-center text-sm font-medium">View account</Link></div>);
   const paidCard = (a: Account) => (
     <div key={a.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="break-all font-medium">{a.email}</div><div className="mt-2 flex flex-wrap gap-2"><StatusBadge s={a.status}/><IssueBadge i={a.issue}/></div>
+      <div className="break-all font-medium">{a.email}</div><div className="mt-2 flex flex-wrap gap-2"><StatusBadge s={a.status}/><IssueBadge i={a.issue}/><PayBadge s={a.payment_status} issue={a.issue}/></div>
       <div className={`mt-4 grid gap-2 text-sm ${isNick?"grid-cols-3":"grid-cols-2"}`}>
         <div className="rounded-xl bg-slate-50 p-3"><div className="text-xs text-slate-500">Work</div><b>{usd(Number(a.total_work))}</b></div>
         {isNick && <div className="rounded-xl bg-slate-50 p-3"><div className="text-xs text-slate-500">Rate</div><b>{Number(a.rate)*100}%</b></div>}

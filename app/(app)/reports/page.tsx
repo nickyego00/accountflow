@@ -21,10 +21,10 @@ const Sec = ({ title, data }: { title: string; data: G }) => (
 export default function Reports() {
   const [rows, setRows] = useState<any[] | null>(null), [accs, setAccs] = useState<any[]>([]), [p, setP] = useState("month"), [from, setFrom] = useState(""), [to, setTo] = useState("");
   useEffect(() => {
-    supabase.from("work_records").select("work_date, amount_usd, accounts(id,email,rate,people(id,name))").then(r => setRows(r.data ?? []));
+    supabase.from("work_records").select("work_date, amount_usd, accounts(id,email,rate,issue,people(id,name))").then(r => setRows(r.data ?? []));
     supabase.from("account_totals").select("status,issue").then(r => setAccs(r.data ?? [])); }, []);
   if (!rows) return <p className="text-slate-500">Loading…</p>;
-  const [a, b] = range(p, from, to), list = rows.filter(r => r.work_date >= a && r.work_date <= b);
+  const [a, b] = range(p, from, to), list = rows.filter(r => r.work_date >= a && r.work_date <= b && r.accounts.issue === "No Issue");
   const group = (key: (r: any) => string): G => {
     const m: Record<string, { work: number; earn: number }> = {};
     list.forEach(r => { const k = key(r), amt = Number(r.amount_usd), rate = Number(r.accounts.rate);
@@ -32,7 +32,7 @@ export default function Reports() {
     return Object.entries(m).sort((x, y) => y[1].work - x[1].work); };
   const t = group(() => "all")[0]?.[1] ?? { work: 0, earn: 0 };
   const periods = [["today", "Today"], ["week", "This week"], ["month", "This month"], ["all", "All time"], ["custom", "Custom"]];
-  return (<div className="space-y-6"><div><h1 className="text-2xl font-semibold">Reports</h1><p className="text-sm text-slate-500">Pulled from all work history across the system.</p></div>
+  return (<div className="space-y-6"><div><h1 className="text-2xl font-semibold">Reports</h1><p className="text-sm text-slate-500">Paid accounts only. Accounts with issues are left out.</p></div>
     <div className="flex flex-wrap items-center gap-2">{periods.map(([k, l]) => <button key={k} onClick={() => setP(k)} className={`rounded-full px-4 py-2 text-sm ${p === k ? "bg-blue-600 text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600"}`}>{l}</button>)}
       {p === "custom" && <><input type="date" value={from} onChange={e => setFrom(e.target.value)} className={inputCls + " !w-auto"} /><input type="date" value={to} onChange={e => setTo(e.target.value)} className={inputCls + " !w-auto"} /></>}</div>
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-3"><Stat label="Total work" value={usd(t.work)} /><Stat label="Total earnings" value={usd(t.earn)} accent /><Stat label="Work records" value={list.length} /></div>

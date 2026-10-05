@@ -13,10 +13,26 @@ export default function Person({ params }: { params: Promise<{ id: string }> }) 
   useEffect(()=>{ load(); },[load]);
   if (!p) return <p className="text-slate-500">Loading…</p>;
   const isNick = p.name.trim().toLowerCase()===ADMIN_NAME.toLowerCase();
-  const work=acc.reduce((s,a)=>s+Number(a.total_work),0), earn=acc.reduce((s,a)=>s+Number(a.earnings),0), act=acc.filter(a=>a.status==="Active").length;
+  const paidAcc = acc.filter(a=>a.issue==="No Issue"), unpaidAcc = acc.filter(a=>a.issue!=="No Issue");
+  const work=paidAcc.reduce((s,a)=>s+Number(a.total_work),0), earn=paidAcc.reduce((s,a)=>s+Number(a.earnings),0), act=acc.filter(a=>a.status==="Active").length;
   const shareSum = every.reduce((s,a)=>s+Number(a.admin_share),0);
-  const others = every.filter(a=>a.person_id!==id);
+  const others = every.filter(a=>a.person_id!==id && a.issue==="No Issue");
   const rate = (a: any, r: number) => Math.abs(Number(a.rate)-r) < 0.001;
+  const buttons = (a: Account) => (<div className="mt-4 grid grid-cols-2 gap-2"><button className="rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white" onClick={()=>editTotal(a.id,Number(a.total_work),load)}>Edit amount</button>
+    <Link href={`/accounts/${a.id}`} className="rounded-xl border border-slate-300 py-2.5 text-center text-sm font-medium">View account</Link></div>);
+  const paidCard = (a: Account) => (
+    <div key={a.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="break-all font-medium">{a.email}</div><div className="mt-2 flex flex-wrap gap-2"><StatusBadge s={a.status}/><IssueBadge i={a.issue}/></div>
+      <div className={`mt-4 grid gap-2 text-sm ${isNick?"grid-cols-3":"grid-cols-2"}`}>
+        <div className="rounded-xl bg-slate-50 p-3"><div className="text-xs text-slate-500">Work</div><b>{usd(Number(a.total_work))}</b></div>
+        {isNick && <div className="rounded-xl bg-slate-50 p-3"><div className="text-xs text-slate-500">Rate</div><b>{Number(a.rate)*100}%</b></div>}
+        <div className="rounded-xl bg-emerald-50 p-3"><div className="text-xs text-emerald-700">Earnings</div><b className="text-emerald-600">{usd(Number(a.earnings))}</b></div></div>
+      <div className="mt-3 text-xs text-slate-500">Updated {new Date(a.updated_at).toLocaleDateString()}</div>{buttons(a)}</div>);
+  const unpaidCard = (a: Account) => (
+    <div key={a.id} className="rounded-2xl border border-rose-200 border-l-4 border-l-rose-500 bg-white p-5 shadow-sm">
+      <div className="break-all font-medium">{a.email}</div><div className="mt-2 flex flex-wrap gap-2"><StatusBadge s={a.status}/><IssueBadge i={a.issue}/></div>
+      <div className="mt-4 rounded-xl bg-rose-50 p-3 text-sm"><div className="text-xs text-rose-700">Held (not paid)</div><b className="text-rose-600">{usd(Number(a.total_work))}</b></div>
+      <div className="mt-3 text-xs text-slate-500">Updated {new Date(a.updated_at).toLocaleDateString()}</div>{buttons(a)}</div>);
   return (<div className="space-y-6">
     <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center gap-5"><Avatar name={p.name} url={p.avatar_url} size={84}/>
@@ -35,7 +51,7 @@ export default function Person({ params }: { params: Promise<{ id: string }> }) 
         <textarea name="notes" placeholder="Notes (optional)" className={inputCls}/><button className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white">Add account</button></form>}</Modal></div></div>
     <PersonTools person={p} accounts={acc} isNick={isNick} reload={load}/>
     <div className={`grid grid-cols-2 gap-3 ${isNick?"lg:grid-cols-5":"lg:grid-cols-4"}`}>
-      <Stat label="Total work" value={usd(work)}/>
+      <Stat label="Total work (paid)" value={usd(work)}/>
       {isNick ? <Stat label={`${ADMIN_NAME}'s total`} value={usd(shareSum+earn)} gold/> : <Stat label="Total earnings" value={usd(earn)} accent/>}
       {isNick && <Stat label="Own accounts' earnings" value={usd(earn)} accent/>}
       <Stat label="Active" value={act}/><Stat label="Inactive" value={acc.length-act}/></div>
@@ -49,17 +65,10 @@ export default function Person({ params }: { params: Promise<{ id: string }> }) 
             <Link key={a.id} href={`/accounts/${a.id}`} className={`flex items-center justify-between gap-3 border-t py-2.5 text-sm first:border-0 ${is10?"border-violet-100":"border-slate-100"}`}>
               <div className="min-w-0"><div className="truncate font-medium">{a.people.name} · {a.email}</div><div className="text-xs text-slate-500">{usd(Number(a.total_work))} made · {r*100}% rate · earns {usd(Number(a.earnings))}</div></div>
               {is10 ? <b className="shrink-0 text-violet-600">{usd(Number(a.admin_share))}</b> : <span className="shrink-0 text-xs text-slate-400">no share</span>}</Link>)}</div>); })}</section>}
-    <h2 className="text-lg font-semibold">{isNick?"My own accounts":"Accounts"}</h2>
-    {acc.length===0 ? <p className="text-slate-500">No accounts yet. Use “Add account” above.</p> :
-    <div className="grid gap-5 md:grid-cols-2">{acc.map(a=>{ const bad=a.issue!=="No Issue"; return (
-      <div key={a.id} className={`rounded-2xl border bg-white p-5 shadow-sm ${bad?"border-rose-200 border-l-4 border-l-rose-500":"border-slate-200"}`}>
-        <div className="break-all font-medium">{a.email}</div><div className="mt-2 flex flex-wrap gap-2"><StatusBadge s={a.status}/><IssueBadge i={a.issue}/></div>
-        <div className={`mt-4 grid gap-2 text-sm ${isNick?"grid-cols-3":"grid-cols-2"}`}>
-          <div className="rounded-xl bg-slate-50 p-3"><div className="text-xs text-slate-500">Work</div><b>{usd(Number(a.total_work))}</b></div>
-          {isNick && <div className="rounded-xl bg-slate-50 p-3"><div className="text-xs text-slate-500">Rate</div><b>{Number(a.rate)*100}%</b></div>}
-          <div className="rounded-xl bg-emerald-50 p-3"><div className="text-xs text-emerald-700">Earnings</div><b className="text-emerald-600">{usd(Number(a.earnings))}</b></div></div>
-        <div className="mt-3 text-xs text-slate-500">Updated {new Date(a.updated_at).toLocaleDateString()}</div>
-        <div className="mt-4 grid grid-cols-2 gap-2"><button className="rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white" onClick={()=>editTotal(a.id,Number(a.total_work),load)}>Edit amount</button>
-          <Link href={`/accounts/${a.id}`} className="rounded-xl border border-slate-300 py-2.5 text-center text-sm font-medium">View account</Link></div></div>); })}</div>}
+    <h2 className="text-lg font-semibold">{isNick?"My own accounts (paid)":"Paid accounts"}</h2>
+    {acc.length===0 ? <p className="text-slate-500">No accounts yet. Use “Add account” above.</p> : paidAcc.length===0 ? <p className="text-sm text-slate-500">No paid accounts right now.</p> :
+    <div className="grid gap-5 md:grid-cols-2">{paidAcc.map(paidCard)}</div>}
+    {unpaidAcc.length>0 && <><div className="flex items-center justify-between"><h2 className="text-lg font-semibold text-rose-700">Not paid (accounts with issues)</h2><b className="text-rose-600">{usd(unpaidAcc.reduce((s,a)=>s+Number(a.total_work),0))}</b></div>
+      <div className="grid gap-5 md:grid-cols-2">{unpaidAcc.map(unpaidCard)}</div></>}
   </div>);
 }

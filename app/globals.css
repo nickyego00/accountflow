@@ -1,1 +1,46 @@
-@tailwind base;@tailwind components;@tailwind utilities;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes pop { from { opacity: 0; transform: scale(.94) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes growY { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes growX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+html { scroll-behavior: smooth; }
+
+/* every page slides in, and its sections follow one after another */
+main > * { animation: rise .5s cubic-bezier(.2,.7,.2,1) backwards; }
+main > * > * { animation: rise .55s cubic-bezier(.2,.7,.2,1) backwards; }
+main > * > *:nth-child(1) { animation-delay: .04s; }
+main > * > *:nth-child(2) { animation-delay: .09s; }
+main > * > *:nth-child(3) { animation-delay: .14s; }
+main > * > *:nth-child(4) { animation-delay: .19s; }
+main > * > *:nth-child(5) { animation-delay: .24s; }
+main > * > *:nth-child(6) { animation-delay: .29s; }
+main > * > *:nth-child(7) { animation-delay: .34s; }
+main > * > *:nth-child(n+8) { animation-delay: .39s; }
+.rise-in { animation: rise .35s cubic-bezier(.2,.7,.2,1) backwards; }
+
+/* pop-up forms */
+.fixed.inset-0 { animation: fade .2s ease; }
+.fixed.inset-0 > div { animation: pop .28s cubic-bezier(.2,.8,.2,1.05); }
+
+/* buttons, links and cards respond to the mouse and to taps */
+a, button, select, input { transition: transform .18s ease, box-shadow .25s ease, background-color .2s ease, border-color .2s ease, color .2s ease, opacity .2s ease; }
+button:not(:disabled):active { transform: scale(.96); }
+button:not(:disabled):hover { box-shadow: 0 6px 16px -8px rgb(15 23 42 / .35); }
+main a.rounded-2xl:hover { transform: translateY(-3px); box-shadow: 0 14px 30px -14px rgb(15 23 42 / .3); }
+main a.block > div { transition: transform .2s ease, box-shadow .25s ease; }
+main a.block:hover > div { transform: translateY(-2px); box-shadow: 0 12px 26px -14px rgb(15 23 42 / .3); }
+main a.block:active > div, main a.rounded-2xl:active { transform: scale(.985); }
+aside nav a:hover { transform: translateX(4px); }
+
+/* chart bars grow in */
+.grow-y { transform-origin: bottom; animation: growY .8s cubic-bezier(.2,.8,.2,1) backwards; }
+.grow-x { transform-origin: left; animation: growX .8s cubic-bezier(.2,.8,.2,1) backwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

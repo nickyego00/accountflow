@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* smooth icons: slimmer lines with rounded ends, everywhere */
+svg.lucide { stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
 /* fonts: headings, logo and big numbers use the display font */
 body { font-feature-settings: "cv11", "ss01"; letter-spacing: -0.005em; }
 h1, h2, h3 { font-family: var(--font-display), var(--font-body), system-ui, sans-serif; letter-spacing: -0.02em; }

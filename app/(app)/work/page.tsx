@@ -1,38 +1,43 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, Wallet, AlertTriangle, FileText } from "lucide-react";
+import { Search } from "lucide-react";
 import { supabase, usd } from "@/lib/supabase";
 import { Avatar } from "@/components/ui";
 
 const ymd = (d: Date) => d.toLocaleDateString("en-CA");
+const short = (d: string) =>
+  new Date(d + "T00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+const dayName = (d: string) =>
+  new Date(d + "T00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric" });
 
 function startOf(p: string): string {
   const t = new Date();
-  if (p === "today") return ymd(t);
   if (p === "week") {
     const s = new Date(t);
-    s.setDate(t.getDate() - ((t.getDay() + 6) % 7));
+    s.setDate(t.getDate() - ((t.getDay() + 5) % 7));
     return ymd(s);
   }
   if (p === "month") return ymd(t).slice(0, 8) + "01";
   return "0000-01-01";
 }
 
-const periods = [["all", "All time"], ["today", "Today"], ["week", "This week"], ["month", "This month"]];
-const kinds = [["all", "All"], ["paid", "Paid accounts"], ["unpaid", "Not paid"]];
+const periods = [["all", "All time"], ["week", "This pay week"], ["month", "This month"]];
+const kinds = [["all", "All"], ["paid", "Paid"], ["held", "Held"]];
+
+type Week = { start: string; pay: string; items: any[] };
 
 export default function WorkHistory() {
   const [rows, setRows] = useState<any[] | null>(null);
   const [q, setQ] = useState("");
   const [p, setP] = useState("all");
   const [kind, setKind] = useState("all");
-  const [shown, setShown] = useState(30);
+  const [shown, setShown] = useState(4);
 
   useEffect(() => {
     supabase
-      .from("work_records")
-      .select("*, accounts(id,email,rate,issue,people(id,name,avatar_url))")
+      .from("work_payable")
+      .select("*")
       .order("work_date", { ascending: false })
       .order("created_at", { ascending: false })
       .then(r => setRows(r.data ?? []));
@@ -42,55 +47,40 @@ export default function WorkHistory() {
 
   const from = startOf(p);
   const list = rows.filter(r => {
-    const bad = r.accounts.issue !== "No Issue";
     if (r.work_date < from) return false;
-    if (kind === "paid" && bad) return false;
-    if (kind === "unpaid" && !bad) return false;
-    const text = (r.accounts.email + r.accounts.people.name + (r.note ?? "")).toLowerCase();
+    if (kind === "paid" && !r.payable) return false;
+    if (kind === "held" && r.payable) return false;
+    const text = (r.email + r.person_name + (r.note ?? "")).toLowerCase();
     return text.includes(q.toLowerCase());
   });
 
-  const sum = (l: any[]) => l.reduce((s, r) => s + Number(r.amount_usd), 0);
-  const paidTotal = sum(list.filter(r => r.accounts.issue === "No Issue"));
-  const heldTotal = sum(list.filter(r => r.accounts.issue !== "No Issue"));
-
-  const visible = list.slice(0, shown);
-  const groups: [string, any[]][] = [];
-  visible.forEach(r => {
-    const last = groups[groups.length - 1];
-    if (last && last[0] === r.work_date) last[1].push(r);
-    else groups.push([r.work_date, [r]]);
+  const weeks: Week[] = [];
+  list.forEach(r => {
+    const last = weeks[weeks.length - 1];
+    if (last && last.start === r.week_start) last.items.push(r);
+    else weeks.push({ start: r.week_start, pay: r.pay_date, items: [r] });
   });
 
-  const dayLabel = (d: string) =>
-    new Date(d + "T00:00").toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
-
-  const pick = (fn: () => void) => { fn(); setShown(30); };
-
-  const banner: [string, string, any][] = [
-    ["Paid accounts", usd(paidTotal), Wallet],
-    ["Not paid (held)", usd(heldTotal), AlertTriangle],
-    ["Entries", String(list.length), FileText],
-  ];
+  const sum = (l: any[]) => l.reduce((s, r) => s + Number(r.amount_usd), 0);
+  const weekEnd = (start: string) => {
+    const d = new Date(start + "T00:00");
+    d.setDate(d.getDate() + 6);
+    return ymd(d);
+  };
+  const reset = (fn: () => void) => {
+    fn();
+    setShown(4);
+  };
+  const chip = (on: boolean, dark?: boolean) =>
+    `rounded-full px-4 py-2 text-sm ${on ? (dark ? "bg-slate-900 text-white shadow-sm" : "bg-blue-600 text-white shadow-sm") : "border border-slate-200 bg-white text-slate-600"}`;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Work history</h1>
-        <p className="text-sm text-slate-500">Every work entry across all accounts, newest first.</p>
-      </div>
-
-      <div className="rounded-3xl bg-gradient-to-br from-blue-600 via-blue-600 to-violet-600 p-6 text-white shadow-lg sm:p-8">
-        <div className="text-sm text-blue-100">Total recorded</div>
-        <div className="mt-1 text-4xl font-semibold sm:text-5xl">{usd(sum(list))}</div>
-        <div className="mt-6 grid grid-cols-3 gap-3 text-sm">
-          {banner.map(([l, v, Icon]) => (
-            <div key={l} className="rounded-2xl bg-white/15 p-3 backdrop-blur">
-              <div className="flex items-center gap-1.5 text-xs text-blue-100"><Icon size={13} />{l}</div>
-              <div className="mt-1 text-base font-semibold sm:text-lg">{v}</div>
-            </div>
-          ))}
-        </div>
+        <p className="text-sm text-slate-500">
+          {list.length} entries · {usd(sum(list))} recorded. Weeks run Tuesday to Monday and are paid the Wednesday after.
+        </p>
       </div>
 
       <div className="space-y-3">
@@ -98,68 +88,85 @@ export default function WorkHistory() {
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={q}
-            onChange={e => pick(() => setQ(e.target.value))}
+            onChange={e => reset(() => setQ(e.target.value))}
             placeholder="Search by person, email or note"
             className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-9 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {periods.map(([k, l]) => (
-            <button
-              key={k}
-              onClick={() => pick(() => setP(k))}
-              className={`rounded-full px-4 py-2 text-sm ${p === k ? "bg-blue-600 text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600"}`}
-            >
-              {l}
-            </button>
+            <button key={k} onClick={() => reset(() => setP(k))} className={chip(p === k)}>{l}</button>
           ))}
           <span className="mx-1 hidden h-6 w-px bg-slate-200 sm:block" />
           {kinds.map(([k, l]) => (
-            <button
-              key={k}
-              onClick={() => pick(() => setKind(k))}
-              className={`rounded-full px-4 py-2 text-sm ${kind === k ? "bg-slate-900 text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600"}`}
-            >
-              {l}
-            </button>
+            <button key={k} onClick={() => reset(() => setKind(k))} className={chip(kind === k, true)}>{l}</button>
           ))}
         </div>
       </div>
 
-      {list.length === 0 ? (
+      {weeks.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
           No work entries match these filters.
         </div>
       ) : (
         <div className="space-y-6">
-          {groups.map(([date, items]) => (
-            <section key={date} className="rise-in">
-              <div className="mb-2 flex items-center justify-between px-1">
-                <h2 className="text-sm font-semibold text-slate-700">{dayLabel(date)}</h2>
-                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">{usd(sum(items))}</span>
-              </div>
-              <div className="space-y-3">
-                {items.map(r => {
-                  const bad = r.accounts.issue !== "No Issue";
-                  const adjust = r.note === "Manual adjustment";
-                  return (
+          {weeks.slice(0, shown).map(w => {
+            const held = sum(w.items.filter(r => !r.payable));
+            return (
+              <section key={w.start} className="rise-in overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-5 py-3">
+                  <div>
+                    <div className="text-sm font-semibold">{short(w.start)} to {short(weekEnd(w.start))}</div>
+                    <div className="text-xs text-slate-500">Pays {short(w.pay)}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-base font-semibold">{usd(sum(w.items))}</div>
+                    {held > 0 && <div className="text-xs font-medium text-rose-600">{usd(held)} held</div>}
+                  </div>
+                </header>
+                <div className="divide-y divide-slate-100">
+                  {w.items.map(r => (
                     <Link
                       key={r.id}
-                      href={`/accounts/${r.accounts.id}`}
-                      className={`flex items-center gap-3 rounded-2xl border bg-white p-4 shadow-sm ${bad ? "border-rose-200 border-l-4 border-l-rose-500" : "border-slate-200"}`}
+                      href={`/accounts/${r.account_id}`}
+                      className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50"
                     >
-                      <Avatar name={r.accounts.people.name} url={r.accounts.people.avatar_url} size={44} />
+                      <div className="w-12 shrink-0 text-xs font-medium text-slate-400">{dayName(r.work_date)}</div>
+                      <Avatar name={r.person_name} url={r.avatar_url} size={38} />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium">{r.accounts.people.name}</div>
-                        <div className="truncate text-xs text-slate-500">{r.accounts.email}</div>
-                        {r.note && !adjust && <div className="mt-1 truncate text-xs text-slate-600">{r.note}</div>}
-                        {adjust && (
-                          <span className="mt-1 inline-block rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700">Adjustment</span>
-                        )}
+                        <div className="truncate text-sm font-medium">{r.person_name}</div>
+                        <div className="truncate text-xs text-slate-500">
+                          {r.email}
+                          {r.note && r.note !== "Manual adjustment" ? ` · ${r.note}` : ""}
+                          {r.note === "Manual adjustment" ? " · Adjustment" : ""}
+                        </div>
                       </div>
                       <div className="shrink-0 text-right">
-                        <div className={`text-base font-semibold ${Number(r.amount_usd) < 0 ? "text-rose-600" : ""}`}>{usd(Number(r.amount_usd))}</div>
-                        {bad ? (
-                          <div className="text-xs font-medium text-rose-600">Not paid · {r.accounts.issue}</div>
-                        ) : (
-                          <div className="text-xs
+                        <div className={`text-sm font-semibold ${Number(r.amount_usd) < 0 ? "text-rose-600" : ""}`}>{usd(Number(r.amount_usd))}</div>
+                        <span
+                          className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${r.payable ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}
+                        >
+                          {r.payable ? "Paid" : "Held"}
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+          {weeks.length > shown && (
+            <div className="text-center">
+              <button
+                onClick={() => setShown(shown + 4)}
+                className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm"
+              >
+                Show more weeks ({weeks.length - shown} left)
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

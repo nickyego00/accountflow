@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* fonts: headings, logo and big numbers use the display font */
+body { font-feature-settings: "cv11", "ss01"; letter-spacing: -0.005em; }
+h1, h2, h3 { font-family: var(--font-display), var(--font-body), system-ui, sans-serif; letter-spacing: -0.02em; }
+h1 { font-weight: 700; }
+.text-5xl, .text-4xl, .text-3xl, .text-2xl.font-semibold, aside .text-lg { font-family: var(--font-display), var(--font-body), system-ui, sans-serif; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+b, .font-semibold { font-variant-numeric: tabular-nums; }
+
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes pop { from { opacity: 0; transform: scale(.94) translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }

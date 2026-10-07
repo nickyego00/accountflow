@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Layers, CheckCircle2, MinusCircle, AlertTriangle, Search, ChevronRight, Wallet } from "lucide-react";
+import { Layers, CheckCircle2, MinusCircle, AlertTriangle, Search, ChevronRight, CalendarClock } from "lucide-react";
 import { supabase, usd } from "@/lib/supabase";
 import PageHero from "@/components/PageHero";
+import { deletesIn, nextPayday } from "@/lib/time";
 
 export default function Accounts() {
   const [rows, setRows] = useState<any[] | null>(null);
@@ -12,7 +13,7 @@ export default function Accounts() {
   const [viewer, setViewer] = useState(true);
   useEffect(() => {
     supabase.rpc("is_viewer").then(r => setViewer(r.data === true));
-    supabase.from("account_holdings").select("*").order("total_work", { ascending: false }).then(r => setRows(r.data ?? []));
+    supabase.from("account_holdings").select("*").order("balance", { ascending: false }).then(r => setRows(r.data ?? []));
   }, []);
   if (!rows) return <p className="text-slate-500">Loading…</p>;
 
@@ -20,7 +21,7 @@ export default function Accounts() {
   const active = rows.filter(r => r.status === "Active");
   const inactive = rows.filter(r => r.status !== "Active");
   const issues = rows.filter(r => r.issue !== "No Issue");
-  const sum = (l: any[]) => l.reduce((s, r) => s + Number(r.total_work), 0);
+  const balance = rows.reduce((s, r) => s + Number(r.balance), 0);
   const filters: [string, string, number][] = [["all", "All", rows.length], ["active", "Active", active.length], ["inactive", "Inactive", inactive.length], ["issues", "With issues", issues.length]];
   const showActive = sel === "all" || sel === "active";
   const showInactive = sel === "all" || sel === "inactive" || sel === "issues";
@@ -42,10 +43,19 @@ export default function Accounts() {
             {off && !bad && <span className="text-slate-400">No issue</span>}
           </div>
         </div>
-        <div className="shrink-0 text-right">
-          <div className="text-xs text-slate-500">{bad ? "Held" : "Holding"}</div>
-          <div className={`text-lg font-semibold ${bad ? "text-rose-600" : ""}`}>{usd(Number(r.total_work))}</div>
-        </div>
+        {bad ? (
+          <div className="shrink-0 text-right">
+            <div className="text-xs text-slate-500">Held</div>
+            <div className="text-lg font-semibold text-rose-600">{usd(Number(r.held_work))}</div>
+            <div className="text-[11px] font-medium text-rose-500">{deletesIn(r.suspended_at)}</div>
+          </div>
+        ) : (
+          <div className="shrink-0 text-right">
+            <div className="text-xs text-slate-500">Balance</div>
+            <div className="text-lg font-semibold">{usd(Number(r.balance))}</div>
+            <div className="text-[11px] text-slate-400">Total {usd(Number(r.total_work))}</div>
+          </div>
+        )}
         {!viewer && <ChevronRight size={18} className="shrink-0 text-slate-300" />}
       </div>
     );
@@ -56,13 +66,13 @@ export default function Accounts() {
     <div className="space-y-6">
       <PageHero
         title="Accounts"
-        description="Every account, what it holds, and whether it is active."
-        banner={{ label: "Total held across all accounts", value: usd(sum(rows)) }}
+        description={`Balances clear every Wednesday. Next payday ${nextPayday()}.`}
+        banner={{ label: "Balance awaiting payment", value: usd(balance) }}
         stats={[
           { label: "Accounts", value: String(rows.length), Icon: Layers },
-          { label: "In active accounts", value: usd(sum(active)), Icon: Wallet },
-          { label: "In inactive accounts", value: usd(sum(inactive)), Icon: MinusCircle },
+          { label: "Active", value: String(active.length), Icon: CheckCircle2 },
           { label: "With issues", value: String(issues.length), Icon: AlertTriangle },
+          { label: "Next payday", value: nextPayday(), Icon: CalendarClock },
         ]}
       />
 

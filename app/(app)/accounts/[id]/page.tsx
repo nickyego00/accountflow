@@ -7,8 +7,12 @@ import { Modal, Stat, StatusBadge, IssueBadge, inputCls } from "@/components/ui"
 import { ADMIN_NAME } from "@/lib/config";
 import PayBadge from "@/components/PayBadge";
 import WorkAnalysis from "@/components/WorkAnalysis";
+import { deletesIn, nextPayday } from "@/lib/time";
 
-type Acc = Account & { held_work: number; paid_work: number; suspended_on: string | null; people: { name: string } };
+type Acc = Account & {
+  held_work: number; paid_work: number; balance: number;
+  suspended_on: string | null; suspended_at: string | null; people: { name: string };
+};
 const day = (d: string) => new Date(d + "T00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
 
 export default function AccountPage({ params }: { params: Promise<{ id: string }> }) {
@@ -43,12 +47,18 @@ export default function AccountPage({ params }: { params: Promise<{ id: string }
         <div className="mt-2 flex flex-wrap gap-2"><StatusBadge s={a.status} /><IssueBadge i={a.issue} /><PayBadge s={a.payment_status} issue={a.issue} /></div>
         {hasIssue && (
           <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm text-rose-800">
-            Weeks run Tuesday to Monday and are paid the Wednesday after. Work in weeks paid before the suspension date was paid out. Later weeks are held.
+            <b>{deletesIn(a.suspended_at)}.</b> This account is deleted automatically 24 hours after it was suspended, together with its work history (a summary is kept).
+            Set the issue back to No Issue to keep it. Work in weeks paid before the suspension date was paid out; later weeks are held.
           </p>
         )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm">
+          <div className="text-sm text-blue-700">Balance</div>
+          <div className="mt-1 text-2xl font-semibold text-blue-600">{usd(Number(a.balance))}</div>
+          <div className="mt-1 text-xs text-slate-500">{Number(a.balance) > 0 ? `Next payday ${nextPayday()}` : "Nothing waiting for payment"}</div>
+        </div>
         <div className={box}>
           <div className="text-slate-500">Total made</div>
           <div className="mt-1 text-2xl font-semibold">{usd(Number(a.total_work))}</div>
@@ -122,8 +132,8 @@ export default function AccountPage({ params }: { params: Promise<{ id: string }
               <div className="min-w-0">
                 <b>{new Date(r.work_date + "T00:00").toLocaleDateString(undefined, { month: "long", day: "numeric" })}</b>
                 {r.note && <div className="text-slate-500">{r.note}</div>}
-                <div className={`text-xs ${r.payable ? "text-slate-400" : "font-medium text-rose-600"}`}>
-                  {r.payable ? `Paid ${day(r.pay_date)}` : `Held · would have paid ${day(r.pay_date)}`}
+                <div className={`text-xs ${r.awaiting ? "text-blue-600" : r.payable ? "text-slate-400" : "font-medium text-rose-600"}`}>
+                  {r.awaiting ? `Balance · pays ${day(r.pay_date)}` : r.payable ? `Paid ${day(r.pay_date)}` : `Held · would have paid ${day(r.pay_date)}`}
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-4">

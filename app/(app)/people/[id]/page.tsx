@@ -9,6 +9,7 @@ import { Modal, Stat, StatusBadge, IssueBadge, Avatar, inputCls } from "@/compon
 import { ADMIN_NAME } from "@/lib/config";
 import PersonTools from "@/components/PersonTools";
 import PayBadge from "@/components/PayBadge";
+import PaymentHistory from "@/components/PaymentHistory";
 
 type Acc = Account & { held_work: number; paid_work: number; suspended_on: string | null };
 
@@ -112,6 +113,7 @@ export default function Person({ params }: { params: Promise<{ id: string }> }) 
       </div>
 
       <PersonTools person={p} accounts={acc} isNick={isNick} reload={load} />
+      <PaymentHistory personId={id} isNick={isNick} />
 
       <div className={`grid grid-cols-2 gap-3 ${isNick ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
         <Stat label="Total work (paid)" value={usd(work)} />
